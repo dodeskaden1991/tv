@@ -2,742 +2,1378 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal</title>
-    <!-- hls.js от надежден CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/0.14.17/hls.min.js">
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BS-NET IPTV & VOD Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📺</text></svg>">
     <style>
         :root {
-            --bg: #0f172a;
-            --sidebar: #1e293b;
-            --accent: #00bcd4;
-            --text: #f1f5f9;
-            --muted: #94a3b8;
-            --border: #334155;
+            --bg-dark: #0d0b18;
+            --panel-bg: #131124;
+            --accent-purple: #6366f1;
+            --accent-indigo: #4f46e5;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --active-glowing: #818cf8;
+            --error-red: #ef4444;
+            --vod-gold: #f59e0b;
+            --header-height: 56px;
         }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            display: flex;
-            height: 100vh;
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        html, body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            height: 100vh; 
             overflow: hidden;
         }
 
-        .sidebar {
-            width: 360px;
-            background: var(--sidebar);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            flex-shrink: 0;
+        /* ===== LOGIN ===== */
+        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
+        .login-box { background: var(--panel-bg); padding: 40px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05); width: 100%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center; }
+        .login-box h2 { margin-bottom: 5px; color: var(--text-main); letter-spacing: 1px; }
+        .login-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
+        .input-group input { width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-main); font-size: 1rem; }
+        .input-group input:focus { outline: none; border-color: var(--accent-purple); }
+        .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple)); border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        .login-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .login-error { color: var(--error-red); font-size: 0.9rem; margin-top: 15px; display: none; }
+
+        /* ===== MAIN LAYOUT ===== */
+        .layout { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            width: 100%; 
+            opacity: 0; 
+            transition: opacity 0.3s ease; 
+            overflow: hidden;
         }
-        .login-box {
-            padding: 15px;
-            border-bottom: 1px solid var(--border);
-            background: #0f172a;
-        }
-        .login-box.hidden {
+        .layout.show { opacity: 1; }
+
+        /* ===== TOP HEADER (мобилен) ===== */
+        .mobile-header {
             display: none;
-        }
-
-        input,
-        button {
-            width: 100%;
-            padding: 10px;
-            margin: 4px 0;
-            background: #2c2c2e;
-            border: 1px solid #3a3a3c;
-            color: white;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        button {
-            background: var(--accent);
-            color: #000;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-        }
-        button:hover {
-            opacity: 0.85;
-        }
-
-        .tabs {
-            display: flex;
-            background: #2c2c2e;
+            background: var(--panel-bg);
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            align-items: center;
+            justify-content: space-between;
             flex-shrink: 0;
+            height: var(--header-height);
+            z-index: 100;
         }
-        .tab-btn {
-            flex: 1;
-            padding: 12px;
+        .mobile-header .brand {
+            font-weight: bold;
+            color: var(--active-glowing);
+            font-size: 1rem;
+        }
+        .mobile-header .brand i {
+            margin-right: 8px;
+        }
+        .mobile-header .hamburger {
             background: none;
             border: none;
-            color: var(--muted);
+            color: var(--text-main);
+            font-size: 1.4rem;
             cursor: pointer;
-            font-size: 14px;
-            transition: 0.2s;
+            padding: 5px 8px;
         }
-        .tab-btn.active {
-            color: var(--accent);
-            border-bottom: 2px solid var(--accent);
-            font-weight: bold;
+        .mobile-header .logout-mobile {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--error-red);
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .mobile-header .logout-mobile:hover {
+            background: rgba(239, 68, 68, 0.25);
         }
 
-        .search-box {
-            padding: 10px;
-            border-bottom: 1px solid var(--border);
+        /* ===== MAIN CONTENT WRAPPER ===== */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ===== КОЛОНА 1: КАТЕГОРИИ (СИДБАР) ===== */
+        .col-categories { 
+            width: 280px; 
+            background-color: var(--panel-bg); 
+            border-right: 1px solid rgba(255, 255, 255, 0.05); 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 50;
+        }
+        .col-categories .panel-header { 
+            padding: 14px 18px; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            color: var(--active-glowing); 
             flex-shrink: 0;
         }
-        .search-box input {
+        .col-categories .panel-header .close-sidebar {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.3rem;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        
+        .mode-switchers { 
+            padding: 8px 12px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+            flex-shrink: 0;
+        }
+        .mode-btn { 
+            padding: 9px; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+            transition: all 0.2s; 
+            color: white; 
+            font-size: 0.85rem; 
             width: 100%;
-            padding: 8px 12px;
-            background: #2c2c2e;
-            border: 1px solid #3a3a3c;
-            color: white;
-            border-radius: 6px;
         }
+        .mode-btn.tv-mode { background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple)); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
+        .mode-btn.vod-mode { background: linear-gradient(135deg, #b45309, var(--vod-gold)); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+        .mode-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        .list-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
+        .list-menu { 
+            list-style: none; 
+            overflow-y: auto; 
+            flex: 1; 
+            padding: 6px 8px; 
         }
-        .item-row {
-            padding: 12px;
-            margin: 4px 0;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 6px;
-            cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: 0.15s;
+        .list-item { 
+            padding: 9px 12px; 
+            cursor: pointer; 
+            border-radius: 8px; 
+            margin-bottom: 3px; 
+            transition: all 0.2s ease; 
+            color: var(--text-muted); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            font-size: 0.85rem; 
         }
-        .item-row:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-left-color: var(--accent);
-        }
-        .back-btn {
-            background: #475569;
-            color: white;
-            text-align: center;
-            font-weight: bold;
-        }
+        .list-item:hover, .list-item.active { background: rgba(255,255,255,0.05); color: var(--text-main); }
+        .list-item.active { border-left: 4px solid var(--accent-purple); background: rgba(99, 102, 241, 0.1); }
 
-        .pagination-ctrls {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            background: #0f172a;
-            border-top: 1px solid var(--border);
-            gap: 10px;
+        .logout-btn { 
+            padding: 12px; 
+            background: rgba(239, 68, 68, 0.08); 
+            color: var(--error-red); 
+            text-align: center; 
+            cursor: pointer; 
+            border-top: 1px solid rgba(255, 255, 255, 0.05); 
+            font-weight: 600; 
+            flex-shrink: 0;
+            font-size: 0.9rem;
         }
-        .page-btn {
-            padding: 6px 12px;
-            background: #2c2c2e;
-            border: 1px solid #3a3a3c;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            width: auto;
-            margin: 0;
-        }
-        .page-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
+        .logout-btn:hover { background: rgba(239, 68, 68, 0.15); }
 
-        .main-content {
-            flex: 1;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            gap: 20px;
-        }
-        .video-wrapper {
-            aspect-ratio: 16/9;
-            max-height: 50vh;
-            min-height: 280px;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        }
-        video {
+        /* ===== Sidebar overlay (мобилен) ===== */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            display: block;
+            background: rgba(0,0,0,0.6);
+            z-index: 40;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay.active {
+            opacity: 1;
         }
 
-        .vod-meta {
-            display: none;
-            gap: 20px;
-            background: var(--sidebar);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
+        /* ===== КОЛОНА 2: СПИСЪК ===== */
+        .col-channels { 
+            width: 340px; 
+            background-color: rgba(19, 17, 36, 0.6); 
+            border-right: 1px solid rgba(255, 255, 255, 0.05); 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0;
         }
-        .vod-meta.visible {
+        .search-container { 
+            padding: 10px 14px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+            position: relative; 
+            flex-shrink: 0;
+        }
+        .search-container input { 
+            width: 100%; 
+            padding: 8px 32px 8px 14px; 
+            background: rgba(0, 0, 0, 0.3); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 20px; 
+            color: var(--text-main); 
+            font-size: 0.85rem; 
+        }
+        .search-container input:focus { outline: none; border-color: var(--accent-purple); }
+        .search-container i { position: absolute; right: 22px; top: 16px; color: var(--text-muted); font-size: 0.85rem; }
+
+        .channels-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .channel-card { 
+            display: flex; 
+            align-items: center; 
+            padding: 8px 10px; 
+            margin: 3px 6px; 
+            background: rgba(255, 255, 255, 0.01); 
+            border: 1px solid rgba(255, 255, 255, 0.04); 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            gap: 8px; 
+        }
+        .channel-card:hover, .channel-card.active { border-color: var(--accent-purple); background: rgba(99, 102, 241, 0.08); }
+        .ch-num { font-size: 0.7rem; color: var(--text-muted); min-width: 18px; text-align: center; }
+        .ch-logo { width: 32px; height: 42px; object-fit: contain; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 2px; flex-shrink: 0; }
+        .ch-info { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
+        .ch-name { font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .placeholder-logo {
             display: flex;
-        }
-        .vod-poster {
-            width: 120px;
-            height: 180px;
-            object-fit: cover;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 42px;
+            background: rgba(255,255,255,0.05);
             border-radius: 6px;
-            background: #2c2c2e;
+            color: var(--text-muted);
+            font-size: 14px;
             flex-shrink: 0;
         }
 
-        .archive-section {
-            display: none;
-            background: var(--sidebar);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
+        /* ===== КОЛОНА 3: ПЛЕЪР ===== */
+        .col-player { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            background-color: var(--bg-dark); 
+            padding: 12px; 
+            gap: 10px; 
+            overflow: hidden;
+            min-width: 0;
         }
-        .archive-section.visible {
-            display: block;
+        .video-container { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 16/9; 
+            background: #000; 
+            border-radius: 10px; 
+            overflow: hidden; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5); 
+            flex-shrink: 0;
         }
-        .archive-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
-            flex-wrap: wrap;
+        video { width: 100%; height: 100%; }
+        
+        .controls-panel { 
+            background: var(--panel-bg); 
+            border-radius: 10px; 
+            padding: 12px 14px; 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+            flex-shrink: 0;
+            overflow-y: auto;
+            max-height: 45vh;
         }
-        .archive-btn {
-            padding: 10px 14px;
-            background: #2c2c2e;
-            border: 1px solid #3a3a3c;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            width: auto;
-            margin: 0;
-            font-size: 13px;
+        .controls-panel::-webkit-scrollbar {
+            width: 3px;
         }
-        .archive-btn:hover {
-            background: var(--accent);
-            color: black;
-            border-color: var(--accent);
-        }
-
-        .current-showbox {
-            margin-top: 15px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.02);
-            border-left: 3px solid var(--accent);
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .list-container::-webkit-scrollbar {
-            width: 6px;
-        }
-        .list-container::-webkit-scrollbar-thumb {
-            background: var(--accent);
+        .controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
             border-radius: 3px;
         }
 
-        @media (max-width: 850px) {
-            body {
-                flex-direction: column;
-                overflow-y: auto;
-                height: auto;
-            }
-            .main-content {
-                order: 1;
-                width: 100%;
-                padding: 10px;
-                overflow-y: visible;
-            }
-            .video-wrapper {
-                max-height: unset;
-                min-height: 220px;
-                height: 300px;
-            }
-            .sidebar {
-                order: 2;
-                width: 100%;
-                height: 55vh;
+        .now-playing-title { 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0;
+        }
+
+        .info-box-dynamic { 
+            background: rgba(0, 0, 0, 0.2); 
+            border-radius: 8px; 
+            padding: 10px 12px; 
+            border-left: 4px solid var(--accent-purple); 
+            display: none; 
+            flex-shrink: 0;
+        }
+        .info-label-dyn { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-purple); font-weight: bold; margin-bottom: 3px; }
+        .info-title-dyn { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; line-height: 1.3; color: #eee; }
+        .epg-progress-bar { width: 100%; height: 3px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
+        .epg-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-indigo), var(--accent-purple)); transition: width 0.5s ease; }
+        .epg-time-meta { font-size: 0.7rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+        .vod-meta-details { font-size: 0.75rem; color: var(--vod-gold); margin-bottom: 3px; font-weight: bold; }
+
+        .timeshift-section { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            border-top: 1px solid rgba(255, 255, 255, 0.05); 
+            padding-top: 10px; 
+            flex-shrink: 0;
+        }
+        .timeshift-title { 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            color: var(--text-muted); 
+            flex-shrink: 0;
+        }
+        .timeshift-buttons { 
+            display: flex; 
+            gap: 4px; 
+            flex-wrap: wrap; 
+            flex-shrink: 0;
+        }
+        .ts-btn { 
+            background: rgba(255, 255, 255, 0.04); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            color: var(--text-main); 
+            padding: 5px 10px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            display: flex; 
+            align-items: center; 
+            gap: 4px; 
+            font-size: 0.75rem; 
+            flex-shrink: 0;
+        }
+        .ts-btn:hover, .ts-btn.active { 
+            background: var(--accent-purple); 
+            border-color: var(--accent-purple); 
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); 
+        }
+
+        .vod-info { background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--vod-gold); padding: 8px 10px; border-radius: 6px; margin-top: 3px; }
+        .vod-info-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.75rem; color: var(--text-muted); }
+        .vod-info-item span:last-child { color: var(--text-main); }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .fullscreen-player {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: #000;
+            display: none;
+            flex-direction: column;
+        }
+        .fullscreen-player video {
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+        .fullscreen-player .close-player {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 10px 20px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10000;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .fullscreen-player .close-player:hover {
+            background: #b91c1c;
+        }
+        
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-muted);
+            z-index: 10;
+        }
+        .loading-spinner i {
+            font-size: 2.5rem;
+            animation: spin 1s linear infinite;
+        }
+        .loading-spinner p {
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 992px) {
+            .col-categories {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 280px;
+                transform: translateX(-100%);
+                z-index: 100;
                 border-right: none;
-                border-top: 1px solid var(--border);
+                box-shadow: 4px 0 30px rgba(0,0,0,0.6);
             }
-            .archive-controls {
-                flex-direction: row;
-                justify-content: space-between;
+            .col-categories.open {
+                transform: translateX(0);
             }
-            .archive-btn {
-                flex: 1;
-                min-width: 30%;
-                text-align: center;
+            .col-categories .panel-header .close-sidebar {
+                display: block;
             }
-            .vod-meta.visible {
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            .mobile-header {
+                display: flex;
+            }
+            
+            .main-content {
                 flex-direction: column;
-                align-items: center;
-                text-align: center;
+                overflow: hidden;
             }
-            .item-row {
-                padding: 14px;
+            
+            .col-channels {
+                width: 100%;
+                height: 32vh;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                flex-shrink: 0;
+            }
+            
+            .col-player {
+                flex: 1;
+                padding: 8px;
+                gap: 8px;
+                overflow: hidden;
+            }
+            
+            .video-container {
+                aspect-ratio: 16/9;
+                max-height: 30vh;
+                border-radius: 8px;
+                flex-shrink: 0;
+            }
+            
+            .controls-panel {
+                padding: 10px 12px;
+                gap: 6px;
+                max-height: 35vh;
+                overflow-y: auto;
+                border-radius: 8px;
+            }
+            
+            .now-playing-title {
+                font-size: 0.95rem;
+            }
+            
+            .timeshift-buttons {
+                gap: 4px;
+            }
+            .ts-btn {
+                padding: 4px 8px;
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .mobile-header {
+                padding: 8px 10px;
+                height: 48px;
+            }
+            .mobile-header .brand {
+                font-size: 0.9rem;
+            }
+            
+            .col-channels {
+                height: 28vh;
+            }
+            
+            .col-player {
+                padding: 6px;
+                gap: 6px;
+            }
+            
+            .video-container {
+                max-height: 25vh;
+                border-radius: 6px;
+            }
+            
+            .controls-panel {
+                padding: 8px 10px;
+                gap: 5px;
+                max-height: 40vh;
+                border-radius: 6px;
+            }
+            .now-playing-title {
+                font-size: 0.85rem;
+            }
+            
+            .channel-card {
+                padding: 6px 8px;
+                margin: 2px 4px;
+            }
+            .ch-name {
+                font-size: 0.75rem;
+            }
+            .ch-logo {
+                width: 28px;
+                height: 36px;
+            }
+            .placeholder-logo {
+                width: 28px;
+                height: 36px;
+                font-size: 12px;
+            }
+            .ch-num {
+                font-size: 0.65rem;
+                min-width: 16px;
+            }
+            
+            .search-container {
+                padding: 6px 10px;
+            }
+            .search-container input {
+                padding: 6px 28px 6px 10px;
+                font-size: 0.75rem;
+            }
+            .search-container i {
+                right: 18px;
+                top: 12px;
+                font-size: 0.75rem;
+            }
+            
+            .timeshift-buttons {
+                gap: 3px;
+            }
+            .ts-btn {
+                padding: 3px 7px;
+                font-size: 0.65rem;
+                gap: 3px;
+            }
+            .ts-btn i {
+                font-size: 0.6rem;
+            }
+            
+            .info-title-dyn {
+                font-size: 0.8rem;
+            }
+            .info-box-dynamic {
+                padding: 6px 10px;
+            }
+            .vod-info-item {
+                font-size: 0.7rem;
+            }
+            
+            .loading-spinner i {
+                font-size: 2rem;
+            }
+            .loading-spinner p {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .col-channels {
+                height: 24vh;
+            }
+            .video-container {
+                max-height: 20vh;
+            }
+            .controls-panel {
+                max-height: 45vh;
+                padding: 6px 8px;
+            }
+            .now-playing-title {
+                font-size: 0.75rem;
+            }
+            .mode-btn {
+                font-size: 0.7rem;
+                padding: 6px;
+            }
+            .list-item {
+                font-size: 0.75rem;
+                padding: 6px 10px;
+            }
+            .ts-btn {
+                padding: 2px 5px;
+                font-size: 0.6rem;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="login-box" id="loginBox">
-            <input type="text" id="username" placeholder="Потребител">
-            <input type="password" id="password" placeholder="Парола">
-            <button onclick="loadXtreamData()">Влез и Зареди</button>
-            <div id="statusMsg" style="color: #ffa726; font-size: 13px; margin-top: 6px;">Въведете данни.</div>
-        </div>
-        <div class="tabs">
-            <button class="tab-btn active" id="tabLive" onclick="setTab('live')">ТВ</button>
-            <button class="tab-btn" id="tabVod" onclick="setTab('vod')">Филми</button>
-        </div>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="🔍 Търси...">
-        </div>
-        <div class="list-container" id="listContainer"></div>
-        <div class="pagination-ctrls" id="paginationBox" style="display: none;">
-            <button class="page-btn" id="prevPageBtn" onclick="changePage(-1)">◀ Предишни</button>
-            <span id="pageIndicator" style="font-size: 13px; align-self: center; color: var(--muted);">1 / 1</span>
-            <button class="page-btn" id="nextPageBtn" onclick="changePage(1)">Следващи ▶</button>
+    <!-- LOGIN -->
+    <div id="login-screen" class="login-overlay">
+        <div class="login-box">
+            <h2>BS-NET IPTV</h2>
+            <p>Въведете вашите Xtream данни за достъп</p>
+            <div class="input-group">
+                <label>Потребителско име</label>
+                <input type="text" id="username-field" placeholder="Потребител">
+            </div>
+            <div class="input-group">
+                <label>Парола</label>
+                <input type="password" id="password-field" placeholder="******">
+            </div>
+            <button class="login-btn" onclick="handleLogin()">Влизане</button>
+            <div id="login-error-msg" class="login-error">Грешни данни за достъп!</div>
         </div>
     </div>
 
-    <div class="main-content">
-        <h2 id="nowPlaying" style="font-weight: 300; font-size: 20px;">Изберете съдържание</h2>
+    <!-- MAIN LAYOUT -->
+    <div id="main-layout" class="layout">
 
-        <div class="video-wrapper">
-            <video id="videoPlayer" controls autoplay playsinline></video>
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span class="brand"><i class="fas fa-tv"></i> BS-NET</span>
+            <button class="logout-mobile" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Изход</button>
         </div>
 
-        <div class="vod-meta" id="vodMeta">
-            <img id="vodPoster" class="vod-poster" src="" onerror="this.src='https://via.placeholder.com/120x180?text=Няма+Снимка'" />
-            <div>
-                <h3 id="vodTitle" style="color: var(--accent); margin-bottom: 8px;"></h3>
-                <p id="vodPlot" style="font-size: 14px; color: var(--muted); line-height: 1.4;"></p>
-            </div>
-        </div>
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-        <div class="archive-section" id="archiveSection">
-            <h3 style="color: #ff9800; font-size: 15px;">⏱️ Бързо връщане назад (Таймшифт)</h3>
-            <div class="archive-controls">
-                <button class="archive-btn" onclick="playArchiveMinutes(5)">-5 мин.</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(10)">-10 мин.</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(15)">-15 мин.</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(30)">-30 мин.</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(60)">-1 час</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(90)">-1.5 часа</button>
-                <button class="archive-btn" onclick="playArchiveMinutes(120)">-2 часа</button>
+        <div class="main-content">
+            <!-- КОЛОНА 1: КАТЕГОРИИ -->
+            <div class="col-categories" id="sidebar">
+                <div class="panel-header">
+                    <i class="fas fa-tv"></i> КАТЕГОРИИ
+                    <button class="close-sidebar" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="mode-switchers">
+                    <button class="mode-btn tv-mode" onclick="loadLiveCategories()"><i class="fas fa-play-circle"></i> На Живо (ТВ)</button>
+                    <button class="mode-btn vod-mode" onclick="loadVodCategories()"><i class="fas fa-film"></i> Видеотека</button>
+                </div>
+
+                <ul class="list-menu" id="categories-list"></ul>
+                
+                <div class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Изход</div>
             </div>
-            <div class="current-showbox" id="currentShowBox">
-                <b>В момента по ТВ:</b> <span id="currentShowName" style="color: var(--muted);">Зареждане...</span>
+
+            <!-- КОЛОНА 2: СПИСЪК -->
+            <div class="col-channels">
+                <div class="search-container">
+                    <input type="text" id="search-box" placeholder="Търси..." oninput="filterMediaSearch()">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="channels-scroll" id="channels-list"></div>
+            </div>
+
+            <!-- КОЛОНА 3: ПЛЕЪР -->
+            <div class="col-player">
+                <div class="video-container">
+                    <video id="video-player" controls autoplay playsinline></video>
+                    <div class="loading-spinner" id="loading-spinner" style="display:none;">
+                        <i class="fas fa-spinner"></i>
+                        <p>Зареждане...</p>
+                    </div>
+                </div>
+
+                <div class="controls-panel">
+                    <div class="now-playing-title" id="current-channel-name">Изберете медия</div>
+                    
+                    <div class="info-box-dynamic" id="dynamic-info-box">
+                        <div id="dynamic-label" class="info-label-dyn">В момента предават:</div>
+                        <div id="dynamic-meta" class="vod-meta-details"></div>
+                        <div id="dynamic-title" class="info-title-dyn">-</div>
+                        <div id="vod-details"></div>
+                        
+                        <div class="epg-progress-bar" id="epg-progress-wrapper">
+                            <div class="epg-progress-fill" id="epg-current-progress"></div>
+                        </div>
+                        <div class="epg-time-meta" id="epg-time-wrapper">
+                            <span id="epg-current-start">00:00</span>
+                            <span id="epg-current-end">00:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="timeshift-section" id="timeshift-wrapper">
+                        <div class="timeshift-title"><i class="fas fa-history"></i> Времеви архив</div>
+                        <div class="timeshift-buttons">
+                            <button class="ts-btn active" onclick="changeTimeshift(0, this)"><i class="fas fa-circle-play"></i> Живо</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-5, this)">-5м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-10, this)">-10м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-15, this)">-15м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-30, this)">-30м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-60, this)">-1ч</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-90, this)">-1.5ч</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-120, this)">-2ч</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
+
+    <!-- FULLSCREEN PLAYER -->
+    <div class="fullscreen-player" id="fullscreenPlayer">
+        <button class="close-player" onclick="closeFullscreenPlayer()">✖ ЗАТВОРИ</button>
+        <video id="fullscreenVideo" controls autoplay></video>
     </div>
 
     <script>
-        // ================================================================
-        // 1. КОНФИГУРАЦИЯ
-        // ================================================================
-        const serverUrl = "http://tvpro.burgasnet.com";
+        // ========== КОНФИГУРАЦИЯ ==========
+        const DNS = "http://tvpro.burgasnet.com:80";
 
-        // Автоматично определяне на API базовия път – работи и локално, и в интернет
-        const apiBase = (() => {
-            // Ако сме на Vercel, използваме относителен път
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                return '/api/tv';
-            }
-            // В интернет – използваме същия домейн + /api/tv
-            return '/api/tv';
-        })();
+        let userCredentials = null;
+        let currentStreams = []; 
+        let allMoviesCached = []; 
+        let selectedStreamId = null;
+        let currentOffsetMinutes = 0;
+        let isVodMode = false;
+        let isVideoPlaying = false;
 
-        console.log('📡 API базов път:', apiBase);
-
-        let liveStreams = [],
-            vodStreams = [],
-            vodCategories = [];
-        let currentTab = 'live',
-            currentCatId = null;
-        let activeItem = null;
-        let currentPage = 1;
-        const itemsPerPage = 20;
+        const videoElement = document.getElementById('video-player');
+        const fullscreenVideo = document.getElementById('fullscreenVideo');
         let hlsInstance = null;
 
-        // ================================================================
-        // 2. ПОМОЩНИ
-        // ================================================================
-        function setStatus(msg, isError = false) {
-            const el = document.getElementById('statusMsg');
-            if (el) {
-                el.textContent = msg;
-                el.style.color = isError ? '#ef5350' : '#ffa726';
-            }
+        // ========== SIDEBAR ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
         }
 
-        function decodeBase64Cyrillic(base64Str) {
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+
+        // Затваряме sidebar при клик на категория (мобилен)
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.list-item') && window.innerWidth <= 992) {
+                setTimeout(closeSidebar, 300);
+            }
+        });
+
+        // ========== HELPER ФУНКЦИИ ==========
+        function getDualLanguageString(str) {
+            if (!str) return '';
+            const charMap = {
+                'a':'а', 'b':'б', 'v':'в', 'g':'г', 'd':'д', 'e':'е', 'zh':'ж', 'z':'з', 'i':'и', 'j':'й', 'k':'к', 'l':'л', 'm':'м', 'n':'н', 'o':'о', 'p':'п', 'r':'р', 's':'с', 't':'т', 'u':'у', 'f':'ф', 'h':'х', 'c':'ц', 'ch':'ч', 'sh':'ш', 'sht':'щ', 'u':'ъ', 'y':'ь', 'yu':'ю', 'ya':'я',
+                'а':'a', 'б':'b', 'в':'v', 'г':'g', 'д':'d', 'е':'e', 'ж':'zh', 'з':'z', 'и':'i', 'й':'j', 'к':'k', 'л':'l', 'м':'m', 'н':'n', 'о':'o', 'п':'p', 'р':'r', 'с':'s', 'т':'t', 'у':'u', 'ф':'f', 'х':'h', 'ц':'c', 'ч':'ch', 'ш':'sh', 'щ':'sht', 'ъ':'u', 'ь':'y', 'ю':'yu', 'я':'ya'
+            };
+            let text = str.toLowerCase();
+            let converted = '';
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i];
+                converted += charMap[char] || char;
+            }
+            return text + " " + converted;
+        }
+
+        function decodeBase64Utf8(base64Str) {
             try {
-                const binary = atob(base64Str);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const binaryString = atob(base64Str);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
                 return new TextDecoder('utf-8').decode(bytes);
-            } catch (_) {
-                return "Грешка при декодиране";
-            }
-        }
-
-        // ================================================================
-        // 3. ТАБОВЕ + ТЪРСАЧКА
-        // ================================================================
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tab = this.id === 'tabLive' ? 'live' : 'vod';
-                setTab(tab);
-            });
-        });
-
-        document.getElementById('searchInput').addEventListener('input', () => {
-            currentPage = 1;
-            renderList();
-        });
-
-        // ================================================================
-        // 4. ЗАРЕЖДАНЕ НА ДАННИ
-        // ================================================================
-        async function loadXtreamData() {
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value.trim();
-            if (!user || !pass) {
-                setStatus('Попълнете потребител и парола!', true);
-                return;
-            }
-            setStatus('⏳ Зареждане...');
-
-            try {
-                // Използваме динамичния API път
-                const baseUrl = apiBase;
-
-                const [liveResp, vodResp, catsResp] = await Promise.all([
-                    fetch(`${baseUrl}?username=${user}&password=${pass}&action=get_live_streams`),
-                    fetch(`${baseUrl}?username=${user}&password=${pass}&action=get_vod_streams`),
-                    fetch(`${baseUrl}?username=${user}&password=${pass}&action=get_vod_categories`)
-                ]);
-
-                if (!liveResp.ok || !vodResp.ok || !catsResp.ok) {
-                    const errText = await liveResp.text();
-                    console.error('Грешка от сървъра:', errText);
-                    throw new Error(`Грешка при комуникация с API-то. Статус: ${liveResp.status}`);
-                }
-
-                liveStreams = await liveResp.json();
-                vodStreams = await vodResp.json();
-                vodCategories = await catsResp.json();
-
-                document.getElementById('loginBox').classList.add('hidden');
-                setStatus(`✅ Заредени: ${liveStreams.length} канала, ${vodStreams.length} филма`, false);
-                renderList();
-            } catch (err) {
-                console.error('Грешка при зареждане:', err);
-                setStatus('❌ Грешка: ' + err.message, true);
-            }
-        }
-
-        // ================================================================
-        // 5. СМЯНА НА ТАБ
-        // ================================================================
-        function setTab(tab) {
-            currentTab = tab;
-            currentCatId = null;
-            currentPage = 1;
-            document.getElementById('searchInput').value = '';
-            document.getElementById('tabLive').classList.toggle('active', tab === 'live');
-            document.getElementById('tabVod').classList.toggle('active', tab === 'vod');
-            renderList();
-        }
-
-        // ================================================================
-        // 6. ИЗРИСУВАНЕ
-        // ================================================================
-        function renderList() {
-            const container = document.getElementById('listContainer');
-            const pagBox = document.getElementById('paginationBox');
-            container.innerHTML = '';
-            pagBox.style.display = 'none';
-
-            const search = document.getElementById('searchInput').value.toLowerCase().trim();
-
-            if (currentTab === 'live') {
-                let filtered = liveStreams.filter(item => (item.name || '').toLowerCase().includes(search));
-                if (!filtered.length) {
-                    container.innerHTML = '<div style="color:var(--muted);padding:10px;">Няма намерени канали.</div>';
-                    return;
-                }
-
-                filtered.forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'item-row';
-                    row.textContent = item.name || 'Без име';
-                    row.onclick = () => selectItem(item, 'live');
-                    container.appendChild(row);
-                });
-            } else {
-                if (!currentCatId) {
-                    let filteredCats = vodCategories.filter(cat => (cat.category_name || '').toLowerCase().includes(
-                    search));
-                    if (!filteredCats.length) {
-                        container.innerHTML = '<div style="color:var(--muted);padding:10px;">Няма категории.</div>';
-                        return;
-                    }
-
-                    filteredCats.forEach(cat => {
-                        const row = document.createElement('div');
-                        row.className = 'item-row';
-                        row.textContent = `📁 ${cat.category_name}`;
-                        row.onclick = () => {
-                            currentCatId = cat.category_id;
-                            currentPage = 1;
-                            document.getElementById('searchInput').value = '';
-                            renderList();
-                        };
-                        container.appendChild(row);
-                    });
-                } else {
-                    const backRow = document.createElement('div');
-                    backRow.className = 'item-row back-btn';
-                    backRow.textContent = '⬅ НАЗАД КЪМ КАТЕГОРИИ';
-                    backRow.onclick = () => {
-                        currentCatId = null;
-                        currentPage = 1;
-                        document.getElementById('searchInput').value = '';
-                        renderList();
-                    };
-                    container.appendChild(backRow);
-
-                    let catMovies = vodStreams.filter(v => v.category_id == currentCatId);
-                    let filtered = catMovies.filter(item => (item.name || item.title || '').toLowerCase().includes(
-                    search));
-
-                    if (!filtered.length) {
-                        container.innerHTML += '<div style="color:var(--muted);padding:10px;">Няма филми.</div>';
-                        return;
-                    }
-
-                    pagBox.style.display = 'flex';
-                    const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-                    document.getElementById('pageIndicator').textContent = `${currentPage} / ${totalPages}`;
-                    document.getElementById('prevPageBtn').disabled = (currentPage === 1);
-                    document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
-
-                    const startIdx = (currentPage - 1) * itemsPerPage;
-                    const pageItems = filtered.slice(startIdx, startIdx + itemsPerPage);
-
-                    pageItems.forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = 'item-row';
-                        row.textContent = `🎬 ${item.name || item.title || 'Без име'}`;
-                        row.onclick = () => selectItem(item, 'vod');
-                        container.appendChild(row);
-                    });
-                }
-            }
-        }
-
-        // ================================================================
-        // 7. СТРАНИЦИРАНЕ
-        // ================================================================
-        function changePage(direction) {
-            currentPage += direction;
-            renderList();
-        }
-
-        // ================================================================
-        // 8. ИЗБОР НА ЕЛЕМЕНТ
-        // ================================================================
-        function selectItem(item, type) {
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value.trim();
-            activeItem = item;
-            const name = item.name || item.title || 'Без име';
-            document.getElementById('nowPlaying').textContent = name;
-
-            document.getElementById('vodMeta').classList.remove('visible');
-            document.getElementById('archiveSection').classList.remove('visible');
-
-            if (type === 'live') {
-                const url = `${serverUrl}/live/${user}/${pass}/${item.stream_id}.m3u8`;
-                playVideo(url, 'hls');
-
-                if (item.tv_archive === 1) {
-                    document.getElementById('archiveSection').classList.add('visible');
-                    loadCurrentEPG(user, pass, item.stream_id);
-                }
-            } else {
-                document.getElementById('vodMeta').classList.add('visible');
-                document.getElementById('vodTitle').textContent = name;
-                document.getElementById('vodPoster').src = item.stream_icon || '';
-                document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание.';
-
-                const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
-                playVideo(url, 'native');
-            }
-        }
-
-        // ================================================================
-        // 9. EPG (В момента по ТВ)
-        // ================================================================
-        async function loadCurrentEPG(user, pass, streamId) {
-            const targetLabel = document.getElementById('currentShowName');
-            targetLabel.textContent = 'Зареждане...';
-
-            try {
-                const resp = await fetch(
-                    `/api/tv?username=${user}&password=${pass}&action=get_short_epg&stream_id=${streamId}`
-                );
-                if (!resp.ok) throw new Error('EPG грешка');
-                const data = await resp.json();
-
-                if (data && data.epg_listings && data.epg_listings.length > 0) {
-                    const now = Math.floor(Date.now() / 1000);
-                    let currentProg = data.epg_listings.find(p => {
-                        const start = parseInt(p.start_timestamp);
-                        const end = parseInt(p.stop_timestamp);
-                        return now >= start && now <= end;
-                    });
-                    if (!currentProg) currentProg = data.epg_listings[0];
-
-                    if (currentProg && currentProg.title) {
-                        let decodedTitle = currentProg.title;
-                        try { decodedTitle = atob(currentProg.title); } catch (e) {}
-
-                        const startHour = currentProg.start ? currentProg.start.split(' ')[1]?.substring(0, 5) : '';
-                        const endHour = currentProg.end ? currentProg.end.split(' ')[1]?.substring(0, 5) : '';
-                        const timeRange = (startHour && endHour) ? `[${startHour} - ${endHour}] ` : '';
-
-                        targetLabel.textContent = timeRange + decodedTitle;
-                        return;
-                    }
-                }
-                targetLabel.textContent = 'Няма информация';
             } catch (e) {
-                console.warn('EPG грешка:', e);
-                targetLabel.textContent = 'Грешка при EPG';
+                return "Грешка при четене на заглавието";
             }
         }
 
-        // ================================================================
-        // 10. ПУСКАНЕ НА ВИДЕО (с hls.js + HTML5 резерв)
-        // ================================================================
-        function playVideo(url, type) {
-            const video = document.getElementById('videoPlayer');
-
-            // Унищожаваме старата hls инстанция
+        // ========== ПЪЛНО ПОЧИСТВАНЕ НА ВИДЕО ==========
+        function resetVideoPlayer() {
+            if (window.hlsInstance) {
+                window.hlsInstance.destroy();
+                window.hlsInstance = null;
+            }
             if (hlsInstance) {
                 hlsInstance.destroy();
                 hlsInstance = null;
             }
+            
+            fullscreenVideo.pause();
+            fullscreenVideo.removeAttribute('src');
+            fullscreenVideo.load();
+            fullscreenVideo.innerHTML = '';
+            
+            videoElement.pause();
+            videoElement.removeAttribute('src');
+            videoElement.load();
+            videoElement.innerHTML = '';
+            
+            document.getElementById('fullscreenPlayer').style.display = 'none';
+            isVideoPlaying = false;
+        }
 
-            video.pause();
-            video.removeAttribute('src');
+        // ========== PLAY VIDEO ==========
+        function playVideo(streamId, extension, type) {
+            resetVideoPlayer();
+            
+            if (!streamId || streamId === 'undefined' || streamId === null) {
+                alert('❌ Грешка: ID-то на филма не е намерено!');
+                return;
+            }
+            
+            let cleanExt = extension ? extension.replace('.', '') : 'mp4';
+            let route = (type === 'series') ? 'series' : 'movie';
+            
+            const urlMain = `${DNS}/${route}/${userCredentials.username}/${userCredentials.password}/${streamId}.${cleanExt}`;
+            const urlMp4 = `${DNS}/${route}/${userCredentials.username}/${userCredentials.password}/${streamId}.mp4`;
+            const urlM3u8 = `${DNS}/${route}/${userCredentials.username}/${userCredentials.password}/${streamId}.m3u8`;
+            const urlNoExt = `${DNS}/${route}/${userCredentials.username}/${userCredentials.password}/${streamId}`;
+
+            const player = document.getElementById('fullscreenPlayer');
+            const video = document.getElementById('fullscreenVideo');
+            
+            player.style.display = 'flex';
+            video.innerHTML = '';
+            
+            const source1 = document.createElement('source');
+            source1.src = urlMain;
+            let mimeType = 'video/mp4';
+            if (cleanExt === 'mkv') mimeType = 'video/x-matroska';
+            else if (cleanExt === 'avi') mimeType = 'video/x-msvideo';
+            else if (cleanExt === 'mov') mimeType = 'video/quicktime';
+            else if (cleanExt === 'm4v') mimeType = 'video/x-m4v';
+            else if (cleanExt === 'mp4') mimeType = 'video/mp4';
+            else if (cleanExt === 'm3u8') mimeType = 'application/vnd.apple.mpegurl';
+            source1.type = mimeType;
+            video.appendChild(source1);
+            
+            const source2 = document.createElement('source');
+            source2.src = urlMp4;
+            source2.type = 'video/mp4';
+            video.appendChild(source2);
+            
+            const source3 = document.createElement('source');
+            source3.src = urlNoExt;
+            source3.type = 'video/mp4';
+            video.appendChild(source3);
+            
             video.load();
-
-            if (type === 'hls' && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                console.log('🎬 Пускане на HLS поток:', url);
-                hlsInstance = new Hls({
-                    maxMaxBufferLength: 10,
-                    enableWorker: true,
-                });
-                hlsInstance.loadSource(url);
-                hlsInstance.attachMedia(video);
-                setStatus('▶️ Възпроизвеждане (HLS)');
-
-                hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-                    if (data.fatal) {
-                        console.warn('HLS фатална грешка:', data);
-                        setStatus('❌ Грешка в HLS потока', true);
-                        hlsInstance.recoverMediaError();
-                    } else {
-                        console.warn('HLS грешка (нефатална):', data);
+            
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isVideoPlaying = true;
+                }).catch(error => {
+                    if (!video.src.includes('.m3u8')) {
+                        tryHlsVod(urlM3u8, streamId);
                     }
                 });
+            }
 
-                hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                    video.play().catch(e => console.log('Autoplay blocked:', e));
+            video.onerror = function() {
+                const err = video.error;
+                
+                if (err.code === 4) {
+                    tryHlsVod(urlM3u8, streamId);
+                    return;
+                }
+                
+                if (video.src && video.src.includes('.mkv') && !video.src.includes('.m3u8')) {
+                    video.innerHTML = '';
+                    const src = document.createElement('source');
+                    src.src = urlMp4;
+                    src.type = 'video/mp4';
+                    video.appendChild(src);
+                    video.load();
+                    video.play().catch(e => {});
+                    return;
+                }
+                
+                if (video.src && !video.src.includes('.m3u8') && !video.src.includes('.mp4')) {
+                    tryHlsVod(urlM3u8, streamId);
+                    return;
+                }
+
+                let msg = "Неизвестна грешка.";
+                if (err.code === 4) msg = "Форматът на видеото не се поддържа от браузъра (H.265/HEVC).";
+                if (err.code === 3) msg = "Грешка при декодиране.";
+                if (err.code === 2) msg = "Грешка в мрежата: Файлът не е намерен (404).";
+
+                if (err.code === 4 || err.code === 2) {
+                    if(confirm(`${msg}\n\nИскате ли да опитате с HLS стрийм?`)) {
+                        tryHlsVod(urlM3u8, streamId);
+                    } else if(confirm('Искате ли да отворите във външен плеър (VLC)?')) {
+                        window.open(video.src, '_blank');
+                        player.style.display = 'none';
+                    }
+                }
+            };
+        }
+
+        function tryHlsVod(hlsUrl, streamId) {
+            const video = document.getElementById('fullscreenVideo');
+            video.innerHTML = '';
+            
+            if (Hls.isSupported()) {
+                if (window.hlsInstance) {
+                    window.hlsInstance.destroy();
+                    window.hlsInstance = null;
+                }
+                
+                window.hlsInstance = new Hls({
+                    maxBufferLength: 30,
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    manifestLoadingTimeOut: 10000,
+                    manifestLoadingMaxRetry: 3,
+                    manifestLoadingRetryDelay: 1000
                 });
-
-            } else if (type === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
-                // Safari native HLS
-                video.src = url;
-                setStatus('▶️ Възпроизвеждане (Native HLS)');
-                video.play().catch(e => console.log('Autoplay blocked:', e));
+                
+                window.hlsInstance.loadSource(hlsUrl);
+                window.hlsInstance.attachMedia(video);
+                
+                window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play().catch(e => {});
+                });
+                
+                window.hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                        const player = document.getElementById('fullscreenPlayer');
+                        player.style.display = 'none';
+                        alert('❌ Неуспешно зареждане на филма. Моля, опитайте с външен плеър.');
+                    }
+                });
             } else {
-                // Директно за MP4/TS
-                video.src = url;
-                setStatus('▶️ Възпроизвеждане (директно)');
-                video.play().catch(e => console.log('Autoplay blocked:', e));
+                video.src = hlsUrl;
+                video.load();
+                video.play().catch(e => {
+                    const player = document.getElementById('fullscreenPlayer');
+                    player.style.display = 'none';
+                    alert('❌ Вашият браузър не поддържа HLS стрийминг.');
+                });
             }
         }
 
-        // ================================================================
-        // 11. АРХИВ (таймшифт)
-        // ================================================================
-        function playArchiveMinutes(minutesAgo) {
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value.trim();
-            if (!user || !pass || !activeItem) {
-                setStatus('Липсват данни за архив.', true);
+        function closeFullscreenPlayer() {
+            resetVideoPlayer();
+        }
+
+        // ========== ОСНОВНИ ФУНКЦИИ ==========
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('iptv_user');
+            const savedPass = localStorage.getItem('iptv_pass');
+            if (savedUser && savedPass) {
+                userCredentials = { username: savedUser, password: savedPass };
+                showMainLayout();
+                loadLiveCategories();
+            }
+        });
+
+        async function handleLogin() {
+            const user = document.getElementById('username-field').value.trim();
+            const pass = document.getElementById('password-field').value.trim();
+            const errorMsg = document.getElementById('login-error-msg');
+
+            if (!user || !pass) {
+                errorMsg.textContent = 'Моля, въведете потребителско име и парола!';
+                errorMsg.style.display = 'block';
                 return;
             }
 
-            const targetDate = new Date(Date.now() - minutesAgo * 60000);
-            const year = targetDate.getFullYear();
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            const hours = String(targetDate.getHours()).padStart(2, '0');
-            const mins = String(targetDate.getMinutes()).padStart(2, '0');
-
-            const formattedTime = `${year}-${month}-${day}:${hours}-${mins}`;
-            const archiveUrl = `${serverUrl}/timeshift/${user}/${pass}/120/${formattedTime}/${activeItem.stream_id}.m3u8`;
-
-            const name = activeItem.name || activeItem.title || 'запис';
-            document.getElementById('nowPlaying').textContent =
-                `[АРХИВ -${minutesAgo} мин] ${name} (${hours}:${mins} ч.)`;
-
-            console.log(`📼 Заявка за архив:`, archiveUrl);
-            playVideo(archiveUrl, 'hls');
+            const testUrl = `${DNS}/player_api.php?username=${user}&password=${pass}&action=get_live_categories`;
+            try {
+                const response = await fetch(testUrl);
+                const data = await response.json();
+                if (Array.isArray(data) || (data && !data.user_info?.auth == 0)) {
+                    localStorage.setItem('iptv_user', user);
+                    localStorage.setItem('iptv_pass', pass);
+                    userCredentials = { username: user, password: pass };
+                    errorMsg.style.display = 'none';
+                    showMainLayout();
+                    loadLiveCategories();
+                } else { 
+                    throw new Error("Невалидни данни за достъп"); 
+                }
+            } catch (err) { 
+                errorMsg.textContent = 'Грешни данни за достъп! Моля, опитайте отново.';
+                errorMsg.style.display = 'block'; 
+            }
         }
 
-        // ================================================================
-        // 12. ENTER в полетата + старт
-        // ================================================================
-        document.getElementById('username').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loadXtreamData();
-        });
-        document.getElementById('password').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loadXtreamData();
-        });
+        function showMainLayout() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-layout').classList.add('show');
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setStatus('Въведете данни и натиснете "Влез"');
-            if (typeof Hls === 'undefined') {
-                console.warn('⚠️ hls.js не е зареден!');
-                setStatus('⚠️ hls.js не е зареден!', true);
-            } else {
-                console.log('✅ hls.js зареден успешно.');
+        function handleLogout() {
+            localStorage.clear();
+            resetVideoPlayer();
+            document.getElementById('main-layout').classList.remove('show');
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('username-field').value = '';
+            document.getElementById('password-field').value = '';
+            userCredentials = null;
+            closeSidebar();
+        }
+
+        async function loadLiveCategories() {
+            if (!userCredentials) return;
+            isVodMode = false;
+            document.getElementById('timeshift-wrapper').style.display = 'flex';
+            document.getElementById('dynamic-info-box').style.display = 'none';
+            document.getElementById('search-box').value = '';
+            resetVideoPlayer();
+            closeSidebar();
+            
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_live_categories`;
+            try {
+                const response = await fetch(url);
+                const categories = await response.json();
+                renderCategories(categories, false);
+            } catch (error) { console.error(error); }
+        }
+
+        async function loadVodCategories() {
+            if (!userCredentials) return;
+            isVodMode = true;
+            document.getElementById('timeshift-wrapper').style.display = 'none';
+            document.getElementById('dynamic-info-box').style.display = 'none';
+            document.getElementById('search-box').value = '';
+            resetVideoPlayer();
+            closeSidebar();
+
+            await cacheAllMoviesGlobally();
+
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_vod_categories`;
+            try {
+                const response = await fetch(url);
+                const categories = await response.json();
+                renderCategories(categories, true);
+            } catch (error) { console.error(error); }
+        }
+
+        async function cacheAllMoviesGlobally() {
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_vod_streams`;
+            try {
+                const response = await fetch(url);
+                allMoviesCached = await response.json();
+            } catch (e) { 
+                console.error("Грешка при кеширане на филми:", e); 
             }
-            console.log('🌐 Текущ домейн:', window.location.hostname);
-            console.log('📡 API път:', apiBase);
-        });
+        }
+
+        function renderCategories(categories, isVod) {
+            const catList = document.getElementById('categories-list');
+            catList.innerHTML = '';
+            categories.forEach((cat, index) => {
+                const li = document.createElement('li');
+                li.className = `list-item ${index === 0 ? 'active' : ''}`;
+                li.innerHTML = `<i class="fas ${isVod ? 'fa-film' : 'fa-folder'}"></i> ${cat.category_name}`;
+                li.onclick = () => {
+                    document.querySelectorAll('#categories-list .list-item').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+                    document.getElementById('search-box').value = '';
+                    resetVideoPlayer();
+                    if (isVod) { loadVodStreams(cat.category_id); } 
+                    else { loadLiveStreams(cat.category_id); }
+                };
+                catList.appendChild(li);
+            });
+            if(categories.length > 0) {
+                if(isVod) loadVodStreams(categories[0].category_id);
+                else loadLiveStreams(categories[0].category_id);
+            }
+        }
+
+        async function loadLiveStreams(categoryId) {
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_live_streams&category_id=${categoryId}`;
+            const chList = document.getElementById('channels-list');
+            chList.innerHTML = '<div style="padding: 15px; color: var(--text-muted); text-align:center; font-size:0.85rem;">Зареждане...</div>';
+            try {
+                const response = await fetch(url);
+                currentStreams = await response.json();
+                renderMediaCards(currentStreams, false);
+            } catch (error) { chList.innerHTML = 'Грешка.'; }
+        }
+
+        async function loadVodStreams(categoryId) {
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_vod_streams&category_id=${categoryId}`;
+            const chList = document.getElementById('channels-list');
+            chList.innerHTML = '<div style="padding: 15px; color: var(--text-muted); text-align:center; font-size:0.85rem;">Зареждане на филми...</div>';
+            try {
+                const response = await fetch(url);
+                currentStreams = await response.json();
+                renderMediaCards(currentStreams, true);
+            } catch (error) { chList.innerHTML = 'Грешка.'; }
+        }
+
+        function getValidLogoUrl(stream) {
+            let logoUrl = stream.stream_icon || stream.stream_poster || stream.poster || stream.cover || '';
+            if (logoUrl && logoUrl.startsWith('http')) {
+                return logoUrl;
+            }
+            return null;
+        }
+
+        function renderMediaCards(streams, isVod) {
+            const chList = document.getElementById('channels-list');
+            chList.innerHTML = '';
+            if (!streams || streams.length === 0) {
+                chList.innerHTML = '<div style="padding: 15px; color: var(--text-muted); text-align:center; font-size:0.85rem;">Няма намерено съдържание.</div>';
+                return;
+            }
+
+            streams.forEach((stream, index) => {
+                const div = document.createElement('div');
+                div.className = 'channel-card';
+                div.setAttribute('data-search', getDualLanguageString(stream.name));
+
+                const logoUrl = getValidLogoUrl(stream);
+                
+                let logoHtml = '';
+                if (logoUrl) {
+                    logoHtml = `<img class="ch-logo" src="${logoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;
+                    logoHtml += `<div class="placeholder-logo" style="display:none;"><i class="fas fa-film"></i></div>`;
+                } else {
+                    logoHtml = `<div class="placeholder-logo"><i class="fas fa-film"></i></div>`;
+                }
+
+                div.innerHTML = `
+                    <span class="ch-num">${index + 1}</span>
+                    ${logoHtml}
+                    <div class="ch-info">
+                        <span class="ch-name">${stream.name}</span>
+                    </div>
+                `;
+
+                div.onclick = () => {
+                    document.querySelectorAll('.channel-card').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    
+                    if(!isVod) {
+                        document.querySelectorAll('.ts-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelector('.timeshift-buttons .ts-btn').classList.add('active');
+                        currentOffsetMinutes = 0;
+                        playLiveStream(stream);
+                    } else {
+                        let id = stream.movie_id || stream.id || stream.stream_id || stream.video_id || stream.file_id;
+                        
+                        if (!id || id === 'undefined' || id === null) {
+                            alert('❌ Грешка: Не мога да намеря ID на филма!');
+                            return;
+                        }
+                        
+                        const ext = stream.container_extension || stream.extension || 'mkv';
+                        const name = stream.name;
+                        
+                        showVodInfo(stream);
+                        document.getElementById('current-channel-name').innerText = name;
+                        
+                        playVideo(id, ext, 'movies');
+                    }
+                };
+                chList.appendChild(div);
+            });
+        }
+
+        function filterMediaSearch() {
+            const query = document.getElementById('search-box').value.toLowerCase().trim();
+            
+            if (isVodMode && query.length > 0) {
+                const filteredMovies = allMoviesCached.filter(movie => {
+                    return getDualLanguageString(movie.name).includes(query);
+                });
+                renderMediaCards(filteredMovies, true);
+            } else if (isVodMode && query.length === 0) {
+                renderMediaCards(currentStreams, true);
+            } else {
+                const cards = document.querySelectorAll('.channel-card');
+                cards.forEach(card => {
+                    const searchData = card.getAttribute('data-search');
+                    card.style.display = searchData.includes(query) ? 'flex' : 'none';
+                });
+            }
+        }
+
+        function playLiveStream(stream) {
+            resetVideoPlayer();
+            
+            const streamId = stream.stream_id;
+            selectedStreamId = streamId;
+            
+            document.getElementById('current-channel-name').innerText = stream.name;
+            document.getElementById('loading-spinner').style.display = 'block';
+            
+            let finalUrl = "";
+            
+            if (currentOffsetMinutes === 0) {
+                finalUrl = `${DNS}/live/${userCredentials.username}/${userCredentials.password}/${streamId}.m3u8`;
+            } else {
+                const targetTime = new Date(Date.now() + (currentOffsetMinutes * 60000));
+                const formattedStart = `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}:${String(targetTime.getHours()).padStart(2, '0')}-${String(targetTime.getMinutes()).padStart(2, '0')}`;
+                finalUrl = `${DNS}/timeshift/${userCredentials.username}/${userCredentials.password}/15/${formattedStart}/${streamId}.m3u8`;
+            }
+            
+            fetchShortEPG(streamId);
+
+            if (Hls.isSupported()) {
+                if (hlsInstance) {
+                    hlsInstance.destroy();
+                    hlsInstance = null;
+                }
+                
+                hlsInstance = new Hls({ 
+                    maxBufferLength: 10, 
+                    liveDurationInfinity: true,
+                    manifestLoadingTimeOut: 5000,
+                    manifestLoadingMaxRetry: 3
+                });
+                
+                hlsInstance.loadSource(finalUrl);
+                hlsInstance.attachMedia(videoElement);
+                
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    videoElement.play();
+                    isVideoPlaying = true;
+                });
+                
+                hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                });
+            } else {
+                videoElement.src = finalUrl;
+                videoElement.play().catch(e => {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                });
+            }
+        }
+
+        function showVodInfo(stream) {
+            const infoBox = document.getElementById('dynamic-info-box');
+            const label = document.getElementById('dynamic-label');
+            const title = document.getElementById('dynamic-title');
+            const meta = document.getElementById('dynamic-meta');
+            const vodDetails = document.getElementById('vod-details');
+            
+            document.getElementById('epg-progress-wrapper').style.display = 'none';
+            document.getElementById('epg-time-wrapper').style.display = 'none';
+            
+            label.innerText = '🎬 Информация за филма:';
+            infoBox.style.display = 'block';
+            
+            const rating = stream.rating ? `⭐ ${stream.rating}` : '⭐ N/A';
+            const year = stream.year || stream.custom_sid || 'N/A';
+            
+            let displayId = stream.movie_id || stream.id || stream.stream_id || 'N/A';
+            
+            meta.innerHTML = `<div style="color: var(--vod-gold);">${rating} | ${year}</div>`;
+            title.innerText = stream.name;
+            
+            vodDetails.innerHTML = `
+                <div class="vod-info">
+                    <div class="vod-info-item"><span>ID:</span><span>#${displayId}</span></div>
+                    <div class="vod-info-item"><span>Формат:</span><span>${stream.container_extension || stream.extension || 'N/A'}</span></div>
+                    ${stream.duration ? `<div class="vod-info-item"><span>Продължителност:</span><span>${Math.floor(stream.duration / 60)} мин</span></div>` : ''}
+                </div>
+            `;
+        }
+
+        async function fetchShortEPG(streamId) {
+            const infoBox = document.getElementById('dynamic-info-box');
+            document.getElementById('epg-progress-wrapper').style.display = 'block';
+            document.getElementById('epg-time-wrapper').style.display = 'flex';
+            document.getElementById('dynamic-meta').innerHTML = '';
+            document.getElementById('dynamic-label').innerText = '📺 В момента предават:';
+
+            const url = `${DNS}/player_api.php?username=${userCredentials.username}&password=${userCredentials.password}&action=get_short_epg&stream_id=${streamId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data && data.epg_listings && data.epg_listings.length > 0) {
+                    const nowTimestamp = Math.floor(Date.now() / 1000);
+                    const currentProg = data.epg_listings.find(prog => {
+                        return nowTimestamp >= prog.start_timestamp && nowTimestamp <= prog.stop_timestamp;
+                    }) || data.epg_listings[0];
+
+                    infoBox.style.display = 'block';
+                    document.getElementById('dynamic-title').innerText = decodeBase64Utf8(currentProg.title);
+
+                    const start = new Date(currentProg.start_timestamp * 1000);
+                    const stop = new Date(currentProg.stop_timestamp * 1000);
+                    const now = new Date();
+
+                    document.getElementById('epg-current-start').innerText = start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    document.getElementById('epg-current-end').innerText = stop.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                    const totalDist = stop - start;
+                    const currentDist = now - start;
+                    let progressPercent = Math.max(0, Math.min(100, (currentDist / totalDist) * 100));
+                    document.getElementById('epg-current-progress').style.width = `${progressPercent}%`;
+                } else { 
+                    infoBox.style.display = 'none'; 
+                }
+            } catch (e) { 
+                infoBox.style.display = 'none'; 
+            }
+        }
+
+        function changeTimeshift(minutesOffset, buttonElement) {
+            if (!selectedStreamId || isVodMode) return;
+            document.querySelectorAll('.ts-btn').forEach(btn => btn.classList.remove('active'));
+            buttonElement.classList.add('active');
+
+            currentOffsetMinutes = minutesOffset;
+            const activeStream = currentStreams.find(s => s.stream_id === selectedStreamId);
+            if (activeStream) playLiveStream(activeStream);
+        }
     </script>
 </body>
 </html>
