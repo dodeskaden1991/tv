@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TV Pro Portal - Single Player</title>
-    <!-- Премахнат е hls.js, оставяме само H265web.js PRO -->
+    <!-- Зареждане на H265web.js PRO SDK -->
     <script src="https://cdn.jsdelivr.net/npm/h265web.js@latest/dist/h265webjs.min.js"></script>
 
     <style>
@@ -41,9 +41,8 @@
         
         .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; gap: 20px; }
         
-        /* Само един контейнер за новия плеър */
         .video-wrapper { position: relative; aspect-ratio: 16/9; max-height: 50vh; min-height: 280px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .h265-container { width: 100%; height: 100%; display: block; }
+        .h265-container { width: 100%; height: 100%; display: block; background: #000; }
         
         .vod-meta { display: none; gap: 20px; background: var(--sidebar); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
         .vod-meta.visible { display: flex; }
@@ -83,7 +82,6 @@
         <h2 id="nowPlaying" style="font-weight: 300; font-size: 20px;">Изберете съдържание</h2>
         
         <div class="video-wrapper">
-            <!-- Остава само чистият контейнер за SDK-то -->
             <div id="h265PlayerContainer" class="h265-container"></div>
         </div>
         
@@ -192,7 +190,7 @@
                         row.className = 'item-row';
                         row.textContent = `📁 ${cat.category_name}`;
                         row.onclick = () => { currentCatId = cat.category_id; document.getElementById('searchInput').value = ''; renderList(); };
-                        container.appendChild(cat);
+                        container.appendChild(row); // ТУК Е КОРИГИРАНО (беше cat)
                     });
                 } else {
                     const backRow = document.createElement('div');
@@ -283,7 +281,6 @@
         function playVideo(url) {
             const h265Box = document.getElementById('h265PlayerContainer');
 
-            // Чистим предходната инстанция, за да освободим паметта на WebAssembly
             if (h265Player) {
                 try {
                     h265Player.release();
@@ -292,7 +289,7 @@
                 h265Box.innerHTML = '';
             }
 
-            // Конфигурираме SDK-то директно за подадения линк (разпознава сам m3u8 и ts)
+            // Основна конфигурация според H265web.js PRO API
             const config = {
                 player: "h265PlayerContainer",
                 width: h265Box.clientWidth,
@@ -303,12 +300,20 @@
                 }
             };
 
-            // Инициализация
-            h265Player = window.H265webjsModule.createPlayer(url, config);
-            
-            h265Player.on("load", () => {
-                h265Player.play();
-            });
+            try {
+                // Инициализираме плеъра директно през глобалния мудул
+                h265Player = window.H265webjsModule.createPlayer(url, config);
+                
+                h265Player.on("load", () => {
+                    h265Player.play();
+                });
+
+                h265Player.on("error", (err) => {
+                    console.error("H265web.js грешка:", err);
+                });
+            } catch (err) {
+                console.error("Неуспешно стартиране на плеъра:", err);
+            }
         }
 
         function playArchiveMinutes(minutesAgo) {
