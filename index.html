@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal - Safe Vercel Proxy</title>
+    <title>TV Pro Portal</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -116,6 +116,7 @@
     </div>
 
     <script>
+        const serverUrl = "http://tvpro.burgasnet.com";
         let liveStreams = [], vodStreams = [], vodCategories = [];
         let currentTab = 'live', currentCatId = null;
         let activeItem = null;
@@ -145,10 +146,11 @@
             }
             setStatus('⏳ Зареждане...');
             try {
+                // Точни релативни пътища до Vercel API без дублиране на наклонени черти
                 const [liveResp, vodResp, catsResp] = await Promise.all([
-                    fetch(`/api/tv?username=${user}&password=${pass}&action=get_live_streams`),
-                    fetch(`/api/tv?username=${user}&password=${pass}&action=get_vod_streams`),
-                    fetch(`/api/tv?username=${user}&password=${pass}&action=get_vod_categories`)
+                    fetch(`api/tv?username=${user}&password=${pass}&action=get_live_streams`),
+                    fetch(`api/tv?username=${user}&password=${pass}&action=get_vod_streams`),
+                    fetch(`api/tv?username=${user}&password=${pass}&action=get_vod_categories`)
                 ]);
                 
                 if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при комуникация с АПИ проксито.');
@@ -204,6 +206,7 @@
                         row.className = 'item-row';
                         row.textContent = `📁 ${cat.category_name}`;
                         row.onclick = () => { currentCatId = cat.category_id; currentPage = 1; document.getElementById('searchInput').value = ''; renderList(); };
+                        container.appendChild(cat);
                         container.appendChild(row);
                     });
                 } else {
@@ -254,8 +257,8 @@
             document.getElementById('archiveSection').classList.remove('visible');
 
             if (type === 'live') {
-                // Видео потокът минава сигурно през относителния път на Vercel
-                const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${item.stream_id}&type=live`;
+                // Директна връзка към http за стрийма
+                const url = `${serverUrl}/live/${user}/${pass}/${item.stream_id}.m3u8`;
                 playVideo(url);
                 
                 if (item.tv_archive === 1) {
@@ -269,7 +272,8 @@
                 document.getElementById('vodPoster').src = item.stream_icon || '';
                 document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание.';
                 
-                const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${item.stream_id}&type=movie`;
+                // Директна връзка към http за филма
+                const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
                 playVideo(url);
             }
         }
@@ -293,8 +297,7 @@
                       String(d.getHours()).padStart(2,'0') + '-' + 
                       String(d.getMinutes()).padStart(2,'0');
             
-            // Архивното видео също минава през сигурния прокси маршрут
-            const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${activeItem.stream_id}&type=timeshift&timestamp=${f}`;
+            const url = `${serverUrl}/timeshift/${user}/${pass}/120/${f}/${activeItem.stream_id}.m3u8`;
             document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${activeItem.name || 'канал'}`;
             playVideo(url);
         }
