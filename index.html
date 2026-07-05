@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal - Base Version</title>
+    <title>TV Pro Portal - Safe Vercel Proxy</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -87,7 +87,6 @@
         <h2 id="nowPlaying" style="font-weight: 300; font-size: 20px;">Изберете съдържание</h2>
         
         <div class="video-wrapper">
-            <!-- Най-базовият възможен плеър -->
             <video id="videoPlayer" controls autoplay playsinline></video>
         </div>
         
@@ -117,8 +116,6 @@
     </div>
 
     <script>
-        // Връщаме http:// за базов тест. Ако ползваш Vercel локално с npm run dev (http://localhost:3000), стриймовете ТРЯБВА да тръгнат.
-        const serverUrl = "http://tvpro.burgasnet.com";
         let liveStreams = [], vodStreams = [], vodCategories = [];
         let currentTab = 'live', currentCatId = null;
         let activeItem = null;
@@ -154,17 +151,17 @@
                     fetch(`/api/tv?username=${user}&password=${pass}&action=get_vod_categories`)
                 ]);
                 
-                if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при връзка с АПИ.');
+                if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при комуникация с АПИ проксито.');
                 
                 liveStreams = await liveResp.json();
                 vodStreams = await vodResp.json();
                 vodCategories = await catsResp.json();
                 
                 document.getElementById('loginBox').classList.add('hidden');
-                setStatus(`Успешно зареждане!`, false);
+                setStatus(`Успешно зареждане през Vercel!`, false);
                 renderList();
             } catch (err) {
-                setStatus('❌ Грешка при Fetch: ' + err.message, true);
+                setStatus('❌ Грешка: ' + err.message, true);
             }
         }
 
@@ -257,7 +254,8 @@
             document.getElementById('archiveSection').classList.remove('visible');
 
             if (type === 'live') {
-                const url = `${serverUrl}/live/${user}/${pass}/${item.stream_id}.m3u8`;
+                // Видео потокът минава сигурно през относителния път на Vercel
+                const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${item.stream_id}&type=live`;
                 playVideo(url);
                 
                 if (item.tv_archive === 1) {
@@ -271,19 +269,16 @@
                 document.getElementById('vodPoster').src = item.stream_icon || '';
                 document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание.';
                 
-                const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
+                const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${item.stream_id}&type=movie`;
                 playVideo(url);
             }
         }
 
-        // Базово подаване на URL адреса към видео тага
         function playVideo(url) {
             const video = document.getElementById('videoPlayer');
             video.src = url;
             video.load();
-            video.play().catch(e => {
-                console.log("Автоматичното пускане е блокирано. Кликни върху плеъра.", e);
-            });
+            video.play().catch(e => console.log("Блокиран autoplay:", e));
         }
 
         function playArchiveMinutes(minutesAgo) {
@@ -298,7 +293,8 @@
                       String(d.getHours()).padStart(2,'0') + '-' + 
                       String(d.getMinutes()).padStart(2,'0');
             
-            const url = `${serverUrl}/timeshift/${user}/${pass}/120/${f}/${activeItem.stream_id}.m3u8`;
+            // Архивното видео също минава през сигурния прокси маршрут
+            const url = `/api/tv?username=${user}&password=${pass}&action=stream&stream_id=${activeItem.stream_id}&type=timeshift&timestamp=${f}`;
             document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${activeItem.name || 'канал'}`;
             playVideo(url);
         }
