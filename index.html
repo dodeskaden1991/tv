@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal - Fixed EPG</title>
+    <title>TV Pro Portal - Custom Timeshift</title>
     <!-- Задължителни библиотеки за стрийминг -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/6.3.0/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
@@ -15,13 +15,14 @@
             --text: #f1f5f9;
             --muted: #94a3b8;
             --border: #334155;
+            --panel-bg: #1c1c1e;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
         .sidebar { width: 360px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; flex-shrink: 0; }
         
-        .login-box { padding: 15px; border-bottom: 1px solid var(--border); background: #0f172a; }
+        .login-box { padding: 15px; border-bottom: 1px solid var(--border); background: #0f172a; transition: all 0.3s ease; }
         .login-box.hidden { display: none; }
         
         input, button { width: 100%; padding: 10px; margin: 4px 0; background: #2c2c2e; border: 1px solid #3a3a3c; color: white; border-radius: 6px; font-size: 14px; }
@@ -54,7 +55,7 @@
         .archive-btn { padding: 10px 14px; background: #2c2c2e; border: 1px solid #3a3a3c; color: white; border-radius: 6px; cursor: pointer; width: auto; margin: 0; font-size: 13px; }
         .archive-btn:hover { background: var(--accent); color: black; border-color: var(--accent); }
 
-        .current-showbox { margin-top: 15px; padding: 12px; background: rgba(0, 188, 212, 0.05); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 14px; }
+        .current-showbox { margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.02); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 14px; }
 
         .list-container::-webkit-scrollbar { width: 6px; }
         .list-container::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
@@ -105,7 +106,7 @@
                 <button class="archive-btn" onclick="playArchiveMinutes(120)">-2 часа</button>
             </div>
             <div class="current-showbox" id="currentShowBox">
-                <b>В момента по ТВ:</b> <span id="currentShowName" style="color: #fff; font-weight: 500;">Зареждане на EPG...</span>
+                <b>В момента по ТВ:</b> <span id="currentShowName" style="color: var(--muted);">Няма информация</span>
             </div>
         </div>
     </div>
@@ -144,11 +145,12 @@
                 
                 if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при връзка със сървъра.');
                 
-                liveStreams = await liveResp.ok ? liveResp.json() : [];
-                vodStreams = await vodResp.ok ? vodResp.json() : [];
-                vodCategories = await catsResp.ok ? catsResp.json() : [];
+                liveStreams = await liveResp.json();
+                vodStreams = await vodResp.json();
+                vodCategories = await catsResp.json();
                 
                 document.getElementById('loginBox').classList.add('hidden');
+                setStatus(`Заредени успешно канали и филми.`, false);
                 renderList();
             } catch (err) {
                 setStatus('❌ Грешка: ' + err.message, true);
@@ -229,7 +231,9 @@
                 
                 if (item.tv_archive === 1) {
                     document.getElementById('archiveSection').classList.add('visible');
-                    fetchCurrentEPG(user, pass, item.stream_id);
+                    // Вадим текущото предаване директно от данните на стрийма, ако съществува такова
+                    const currentShowName = item.epg_title || item.current_program || 'В момента се излъчва стрийм на живо';
+                    document.getElementById('currentShowName').textContent = currentShowName;
                 }
             } else {
                 document.getElementById('vodMeta').classList.add('visible');
@@ -239,48 +243,6 @@
                 
                 const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
                 playVideo(url, 'native');
-            }
-        }
-
-        // Взема текущото предаване в реално време през Xtream API за конкретния stream_id
-        async function fetchCurrentEPG(user, pass, streamId) {
-            const targetLabel = document.getElementById('currentShowName');
-            targetLabel.textContent = "Зареждане на информация...";
-            try {
-                const resp = await fetch(`/api/tv?username=${user}&password=${pass}&action=get_short_epg&stream_id=${streamId}`);
-                if (!resp.ok) throw new Error();
-                const data = await resp.json();
-                
-                // Проверяваме дали структурата съдържа epg_listings
-                if (data && data.epg_listings && data.epg_listings.length > 0) {
-                    // Търсим текущото предаване по таймстамп
-                    const now = Math.floor(Date.now() / 1000);
-                    let currentProg = data.epg_listings.find(p => {
-                        const start = parseInt(p.start_timestamp);
-                        const end = parseInt(p.stop_timestamp);
-                        return now >= start && now <= end;
-                    });
-
-                    // Ако няма намерено точно по време, вземаме първото налично
-                    if (!currentProg) currentProg = data.epg_listings[0];
-
-                    if (currentProg && currentProg.title) {
-                        // Декодираме Base64 заглавието, тъй като Xtream често го праща така в краткото EPG
-                        let decodedTitle = currentProg.title;
-                        try { decodedTitle = atob(currentProg.title); } catch(e){}
-                        
-                        // Добавяме и час за по-яко визуализиране
-                        const startHour = currentProg.start ? currentProg.start.split(' ')[1].substring(0,5) : '';
-                        const endHour = currentProg.end ? currentProg.end.split(' ')[1].substring(0,5) : '';
-                        const timeRange = (startHour && endHour) ? `[${startHour} - ${endHour}] ` : '';
-
-                        targetLabel.textContent = timeRange + decodedTitle;
-                        return;
-                    }
-                }
-                targetLabel.textContent = "В момента се излъчва стрийм на живо";
-            } catch (e) {
-                targetLabel.textContent = "Няма налична EPG информация";
             }
         }
 
@@ -317,6 +279,7 @@
                       String(d.getHours()).padStart(2,'0') + '-' + 
                       String(d.getMinutes()).padStart(2,'0');
             
+            // 120 минути стандартна продължителност за таймшифт от текущата заявка нататък
             const url = `${serverUrl}/timeshift/${user}/${pass}/120/${f}/${activeItem.stream_id}.m3u8`;
             const name = activeItem.name || 'канал';
             document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${name}`;
