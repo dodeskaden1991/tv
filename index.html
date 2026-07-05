@@ -3,11 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal - H265 Engine</title>
-    
-    <!-- Зареждане на локалното SDK според Screenshot 2026-07-05 111446.png -->
-    <script src="./h265web.js"></script>
-
+    <title>TV Pro Portal - Base Version</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -45,8 +41,8 @@
         .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; gap: 20px; }
-        .video-wrapper { position: relative; aspect-ratio: 16/9; max-height: 50vh; min-height: 280px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .h265-container { width: 100%; height: 100%; display: block; background: #000; }
+        .video-wrapper { aspect-ratio: 16/9; max-height: 50vh; min-height: 280px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        video { width: 100%; height: 100%; display: block; }
         
         .vod-meta { display: none; gap: 20px; background: var(--sidebar); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
         .vod-meta.visible { display: flex; }
@@ -91,8 +87,8 @@
         <h2 id="nowPlaying" style="font-weight: 300; font-size: 20px;">Изберете съдържание</h2>
         
         <div class="video-wrapper">
-            <!-- Контейнер за H265web.js -->
-            <div id="h265PlayerContainer" class="h265-container"></div>
+            <!-- Най-базовият възможен плеър -->
+            <video id="videoPlayer" controls autoplay playsinline></video>
         </div>
         
         <div class="vod-meta" id="vodMeta">
@@ -103,7 +99,6 @@
             </div>
         </div>
 
-        <!-- Програмата и таймшифта са тук, под канала -->
         <div class="archive-section" id="archiveSection">
             <h3 style="color: #ff9800; font-size: 15px;">⏱️ Бързо връщане назад (Таймшифт)</h3>
             <div class="archive-controls">
@@ -122,12 +117,11 @@
     </div>
 
     <script>
-        // Промени на "https://", ако имаш SSL на сървъра, за да не гърми в Vercel
+        // Връщаме http:// за базов тест. Ако ползваш Vercel локално с npm run dev (http://localhost:3000), стриймовете ТРЯБВА да тръгнат.
         const serverUrl = "http://tvpro.burgasnet.com";
         let liveStreams = [], vodStreams = [], vodCategories = [];
         let currentTab = 'live', currentCatId = null;
         let activeItem = null;
-        let h265Player = null;
 
         let currentPage = 1;
         const itemsPerPage = 20;
@@ -160,17 +154,17 @@
                     fetch(`/api/tv?username=${user}&password=${pass}&action=get_vod_categories`)
                 ]);
                 
-                if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при връзка със сървъра.');
+                if (!liveResp.ok || !vodResp.ok || !catsResp.ok) throw new Error('Грешка при връзка с АПИ.');
                 
                 liveStreams = await liveResp.json();
                 vodStreams = await vodResp.json();
                 vodCategories = await catsResp.json();
                 
                 document.getElementById('loginBox').classList.add('hidden');
-                setStatus(`Заредени успешно канали и филми.`, false);
+                setStatus(`Успешно зареждане!`, false);
                 renderList();
             } catch (err) {
-                setStatus('❌ Грешка: ' + err.message, true);
+                setStatus('❌ Грешка при Fetch: ' + err.message, true);
             }
         }
 
@@ -227,7 +221,6 @@
                     
                     if(!filtered.length) { container.innerHTML += '<div style="color:var(--muted);padding:10px;">Няма филми.</div>'; return; }
 
-                    // Пагинация по 20 броя
                     pagBox.style.display = 'flex';
                     const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
                     document.getElementById('pageIndicator').textContent = `${currentPage} / ${totalPages}`;
@@ -276,50 +269,21 @@
                 document.getElementById('vodMeta').classList.add('visible');
                 document.getElementById('vodTitle').textContent = name;
                 document.getElementById('vodPoster').src = item.stream_icon || '';
-                document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание за този филм.';
+                document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание.';
                 
                 const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
                 playVideo(url);
             }
         }
 
-        // Чиста интеграция на H265web.js според твоите файлове
+        // Базово подаване на URL адреса към видео тага
         function playVideo(url) {
-            const h265Box = document.getElementById('h265PlayerContainer');
-
-            if (h265Player) {
-                try {
-                    h265Player.release();
-                } catch(e){}
-                h265Player = null;
-                h265Box.innerHTML = '';
-            }
-
-            const config = {
-                player: "h265PlayerContainer",
-                width: h265Box.clientWidth,
-                height: h265Box.clientHeight,
-                token: "YOUR_PRO_SDK_TOKEN_IF_REQUIRED",
-                extInfo: {
-                    moovStart: 0
-                },
-                wasmEngine: "./h265web_wasm.wasm",
-                wasmWorker: "./h265web_wasm.js"
-            };
-
-            try {
-                h265Player = window.H265webjsModule.createPlayer(url, config);
-                
-                h265Player.on("load", () => {
-                    h265Player.play();
-                });
-
-                h265Player.on("error", (err) => {
-                    console.error("H265web.js грешка:", err);
-                });
-            } catch (err) {
-                console.error("Грешка при стартиране:", err);
-            }
+            const video = document.getElementById('videoPlayer');
+            video.src = url;
+            video.load();
+            video.play().catch(e => {
+                console.log("Автоматичното пускане е блокирано. Кликни върху плеъра.", e);
+            });
         }
 
         function playArchiveMinutes(minutesAgo) {
@@ -335,17 +299,9 @@
                       String(d.getMinutes()).padStart(2,'0');
             
             const url = `${serverUrl}/timeshift/${user}/${pass}/120/${f}/${activeItem.stream_id}.m3u8`;
-            const name = activeItem.name || 'канал';
-            document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${name}`;
+            document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${activeItem.name || 'канал'}`;
             playVideo(url);
         }
-
-        window.addEventListener('resize', () => {
-            if (h265Player) {
-                const h265Box = document.getElementById('h265PlayerContainer');
-                try { h265Player.resize(h265Box.clientWidth, h265Box.clientHeight); } catch(e){}
-            }
-        });
     </script>
 </body>
 </html>
