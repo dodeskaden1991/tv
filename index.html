@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Pro Portal - Single Player</title>
-    <!-- Зареждане на H265web.js PRO SDK -->
+    <title>TV Pro Portal - H.265 Player</title>
+    <!-- H265web.js PRO (вече безплатен) -->
     <script src="https://cdn.jsdelivr.net/npm/h265web.js@latest/dist/h265webjs.min.js"></script>
 
     <style>
@@ -20,7 +20,7 @@
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
         .sidebar { width: 360px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; flex-shrink: 0; }
-        .login-box { padding: 15px; border-bottom: 1px solid var(--border); background: #0f172a; }
+        .login-box { padding: 15px; border-bottom: 1px solid var(--border); background: #0f172a; transition: all 0.3s ease; }
         .login-box.hidden { display: none; }
         
         input, button { width: 100%; padding: 10px; margin: 4px 0; background: #2c2c2e; border: 1px solid #3a3a3c; color: white; border-radius: 6px; font-size: 14px; }
@@ -40,7 +40,6 @@
         .back-btn { background: #475569; color: white; text-align: center; font-weight: bold; }
         
         .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; gap: 20px; }
-        
         .video-wrapper { position: relative; aspect-ratio: 16/9; max-height: 50vh; min-height: 280px; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .h265-container { width: 100%; height: 100%; display: block; background: #000; }
         
@@ -73,7 +72,7 @@
             <button class="tab-btn" id="tabVod" onclick="setTab('vod')">Филми</button>
         </div>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="🔍 Търси в текущия изглед...">
+            <input type="text" id="searchInput" placeholder="🔍 Търси...">
         </div>
         <div class="list-container" id="listContainer"></div>
     </div>
@@ -116,6 +115,23 @@
         let currentTab = 'live', currentCatId = null;
         let activeItem = null;
         let h265Player = null;
+
+        // ===== УНИВЕРСАЛНА ТЪРСАЧКА =====
+        function normalizeText(text) {
+            const map = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
+                'е': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y',
+                'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+                'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+                'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh',
+                'щ': 'sht', 'ъ': 'a', 'ь': 'y', 'ю': 'yu', 'я': 'ya'
+            };
+            let result = '';
+            for (let char of text.toLowerCase()) {
+                result += map[char] || char;
+            }
+            return result;
+        }
 
         function setStatus(msg, isError = false) {
             const el = document.getElementById('statusMsg');
@@ -164,13 +180,19 @@
             renderList();
         }
 
+        // ===== РЕНДИРАНЕ С УНИВЕРСАЛНА ТЪРСАЧКА =====
         function renderList() {
             const container = document.getElementById('listContainer');
             container.innerHTML = '';
-            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+            const searchRaw = document.getElementById('searchInput').value;
+            const searchNormalized = normalizeText(searchRaw);
 
             if (currentTab === 'live') {
-                let filtered = liveStreams.filter(item => (item.name || '').toLowerCase().includes(search));
+                let filtered = liveStreams.filter(item => {
+                    const name = (item.name || '').toLowerCase();
+                    return name.includes(searchRaw.toLowerCase()) || 
+                           normalizeText(name).includes(searchNormalized);
+                });
                 if(!filtered.length) { container.innerHTML = '<div style="color:var(--muted);padding:10px;">Няма намерени канали.</div>'; return; }
                 
                 filtered.forEach(item => {
@@ -181,17 +203,61 @@
                     container.appendChild(row);
                 });
             } else {
+                // VOD – търсене в КАТЕГОРИИТЕ и във ФИЛМИТЕ
                 if (!currentCatId) {
-                    let filteredCats = vodCategories.filter(cat => (cat.category_name || '').toLowerCase().includes(search));
-                    if(!filteredCats.length) { container.innerHTML = '<div style="color:var(--muted);padding:10px;">Няма категории.</div>'; return; }
-                    
-                    filteredCats.forEach(cat => {
-                        const row = document.createElement('div');
-                        row.className = 'item-row';
-                        row.textContent = `📁 ${cat.category_name}`;
-                        row.onclick = () => { currentCatId = cat.category_id; document.getElementById('searchInput').value = ''; renderList(); };
-                        container.appendChild(row); // ТУК Е КОРИГИРАНО (беше cat)
+                    let filteredCats = vodCategories.filter(cat => {
+                        const catName = (cat.category_name || '').toLowerCase();
+                        return catName.includes(searchRaw.toLowerCase()) || 
+                               normalizeText(catName).includes(searchNormalized);
                     });
+                    
+                    if (searchRaw.length > 0) {
+                        const allMovies = vodStreams.filter(item => {
+                            const name = (item.name || item.title || '').toLowerCase();
+                            return name.includes(searchRaw.toLowerCase()) || 
+                                   normalizeText(name).includes(searchNormalized);
+                        });
+                        
+                        if (allMovies.length > 0) {
+                            const resultsDiv = document.createElement('div');
+                            resultsDiv.style.marginBottom = '15px';
+                            const label = document.createElement('div');
+                            label.style.cssText = 'color: var(--accent); font-weight: bold; padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px;';
+                            label.textContent = '🎬 Намерени филми:';
+                            resultsDiv.appendChild(label);
+                            
+                            allMovies.forEach(item => {
+                                const row = document.createElement('div');
+                                row.className = 'item-row';
+                                const catName = vodCategories.find(c => c.category_id == item.category_id);
+                                const prefix = catName ? `[${catName.category_name}] ` : '';
+                                row.textContent = prefix + (item.name || item.title || 'Без име');
+                                row.onclick = () => selectItem(item, 'vod');
+                                resultsDiv.appendChild(row);
+                            });
+                            container.appendChild(resultsDiv);
+                        }
+                    }
+                    
+                    if (filteredCats.length > 0) {
+                        if (searchRaw.length > 0 && container.children.length > 0) {
+                            const sep = document.createElement('div');
+                            sep.style.cssText = 'color: var(--muted); padding: 10px 0; border-top: 1px solid var(--border); margin-top: 10px; text-align: center; font-size: 13px;';
+                            sep.textContent = '📁 Категории';
+                            container.appendChild(sep);
+                        }
+                        filteredCats.forEach(cat => {
+                            const row = document.createElement('div');
+                            row.className = 'item-row';
+                            row.textContent = `📁 ${cat.category_name}`;
+                            row.onclick = () => { currentCatId = cat.category_id; document.getElementById('searchInput').value = ''; renderList(); };
+                            container.appendChild(row);
+                        });
+                    }
+                    
+                    if (container.children.length === 0) {
+                        container.innerHTML = '<div style="color:var(--muted);padding:10px;">Няма намерени резултати.</div>';
+                    }
                 } else {
                     const backRow = document.createElement('div');
                     backRow.className = 'item-row back-btn';
@@ -200,7 +266,11 @@
                     container.appendChild(backRow);
 
                     let catMovies = vodStreams.filter(v => v.category_id == currentCatId);
-                    let filtered = catMovies.filter(item => (item.name || item.title || '').toLowerCase().includes(search));
+                    let filtered = catMovies.filter(item => {
+                        const name = (item.name || item.title || '').toLowerCase();
+                        return name.includes(searchRaw.toLowerCase()) || 
+                               normalizeText(name).includes(searchNormalized);
+                    });
                     
                     filtered.forEach(item => {
                         const row = document.createElement('div');
@@ -225,7 +295,7 @@
 
             if (type === 'live') {
                 const url = `${serverUrl}/live/${user}/${pass}/${item.stream_id}.m3u8`;
-                playVideo(url);
+                playVideo(url, 'hls');
                 
                 if (item.tv_archive === 1) {
                     document.getElementById('archiveSection').classList.add('visible');
@@ -238,7 +308,7 @@
                 document.getElementById('vodPlot').textContent = item.plot || 'Няма налично описание за този филм.';
                 
                 const url = `${serverUrl}/movie/${user}/${pass}/${item.stream_id}.ts`;
-                playVideo(url);
+                playVideo(url, 'h265'); // Използваме H.265 плеъра за VOD
             }
         }
 
@@ -278,42 +348,66 @@
             }
         }
 
-        function playVideo(url) {
-            const h265Box = document.getElementById('h265PlayerContainer');
+        function playVideo(url, type) {
+            const container = document.getElementById('h265PlayerContainer');
 
+            // Унищожаваме стария плеър
             if (h265Player) {
                 try {
-                    h265Player.release();
-                } catch(e){}
+                    h265Player.destroy && h265Player.destroy();
+                    h265Player.release && h265Player.release();
+                } catch(e) {}
                 h265Player = null;
-                h265Box.innerHTML = '';
+                container.innerHTML = '';
             }
 
-            // Основна конфигурация според H265web.js PRO API
-            const config = {
-                player: "h265PlayerContainer",
-                width: h265Box.clientWidth,
-                height: h265Box.clientHeight,
-                token: "YOUR_PRO_SDK_TOKEN_IF_REQUIRED",
-                extInfo: {
-                    moovStart: 0
-                }
-            };
-
-            try {
-                // Инициализираме плеъра директно през глобалния мудул
-                h265Player = window.H265webjsModule.createPlayer(url, config);
+            if (type === 'hls') {
+                // За HLS потоци (ТВ и архив) – използваме hls.js вътре в h265web.js
+                // Но h265web.js поддържа HLS автоматично
+                const config = {
+                    container: container,
+                    url: url,
+                    // h265web.js PRO автоматично разпознава HLS
+                };
                 
-                h265Player.on("load", () => {
+                try {
+                    h265Player = new window.H265webjsPlayer(config);
                     h265Player.play();
-                });
-
-                h265Player.on("error", (err) => {
-                    console.error("H265web.js грешка:", err);
-                });
-            } catch (err) {
-                console.error("Неуспешно стартиране на плеъра:", err);
+                } catch(err) {
+                    console.error('Грешка при H.265 плеъра (HLS):', err);
+                    // Fallback към HTML5 video
+                    fallbackVideo(url);
+                }
+            } else {
+                // За VOD (H.265/MKV/TS) – използваме h265web.js PRO
+                const config = {
+                    container: container,
+                    url: url,
+                    // Автоматично разпознава кодека
+                };
+                
+                try {
+                    h265Player = new window.H265webjsPlayer(config);
+                    h265Player.play();
+                } catch(err) {
+                    console.error('Грешка при H.265 плеъра (VOD):', err);
+                    // Fallback към HTML5 video
+                    fallbackVideo(url);
+                }
             }
+        }
+
+        // Fallback при грешка в H.265 плеъра
+        function fallbackVideo(url) {
+            const container = document.getElementById('h265PlayerContainer');
+            container.innerHTML = `
+                <video style="width:100%;height:100%;background:#000;" controls autoplay>
+                    <source src="${url}" type="video/mp4">
+                    Вашият браузър не поддържа видео.
+                </video>
+            `;
+            const video = container.querySelector('video');
+            video.play().catch(e => console.log('Fallback autoplay blocked:', e));
         }
 
         function playArchiveMinutes(minutesAgo) {
@@ -331,13 +425,26 @@
             const url = `${serverUrl}/timeshift/${user}/${pass}/120/${f}/${activeItem.stream_id}.m3u8`;
             const name = activeItem.name || 'канал';
             document.getElementById('nowPlaying').textContent = `[АРХИВ -${minutesAgo} мин] ${name}`;
-            playVideo(url);
+            playVideo(url, 'hls');
         }
 
-        window.addEventListener('resize', () => {
-            if (h265Player) {
-                const h265Box = document.getElementById('h265PlayerContainer');
-                try { h265Player.resize(h265Box.clientWidth, h265Box.clientHeight); } catch(e){}
+        // ===== ENTER за бързо логване =====
+        document.getElementById('username').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadXtreamData();
+        });
+        document.getElementById('password').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadXtreamData();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setStatus('Въведете данни и натиснете "Влез"');
+            
+            // Проверка дали H265web.js е зареден
+            if (typeof window.H265webjsPlayer !== 'undefined') {
+                console.log('✅ H265web.js PRO зареден успешно (безплатен)');
+            } else {
+                console.warn('⚠️ H265web.js не е зареден. Използва се fallback.');
+                setStatus('⚠️ H.265 плеър не е зареден – използва се fallback.', true);
             }
         });
     </script>
