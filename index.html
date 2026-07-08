@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BS-NET IPTV & VOD Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📺</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="login-screen" class="login-overlay">
+        <div class="login-box">
+            <h2>BS-NET IPTV</h2>
+            <p>Въведете вашите Xtream данни за достъп</p>
+            <div class="input-group">
+                <label>Потребителско име</label>
+                <input type="text" id="username-field" placeholder="Потребител">
+            </div>
+            <div class="input-group">
+                <label>Парола</label>
+                <input type="password" id="password-field" placeholder="******">
+            </div>
+            <button class="login-btn" onclick="handleLogin()">Влизане</button>
+            <div id="login-error-msg" class="login-error">Грешни данни за достъп!</div>
+        </div>
+    </div>
+
+    <div id="main-layout" class="layout">
+
+        <div class="mobile-header">
+            <button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span class="brand"><i class="fas fa-tv"></i> BS-NET</span>
+            <button class="logout-mobile" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Изход</button>
+        </div>
+
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+        <div class="main-content">
+            <div class="col-categories" id="sidebar">
+                <div class="panel-header">
+                    <i class="fas fa-tv"></i> КАТЕГОРИИ
+                    <button class="close-sidebar" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="mode-switchers">
+                    <button class="mode-btn tv-mode" onclick="loadLiveCategories()"><i class="fas fa-play-circle"></i> На Живо (ТВ)</button>
+                    <button class="mode-btn vod-mode" onclick="loadVodCategories()"><i class="fas fa-film"></i> Видеотека</button>
+                </div>
+
+                <ul class="list-menu" id="categories-list"></ul>
+                
+                <div class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Изход</div>
+            </div>
+
+            <div class="col-channels">
+                <div class="search-container">
+                    <input type="text" id="search-box" placeholder="Търси..." oninput="filterMediaSearch()">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="channels-scroll" id="channels-list"></div>
+            </div>
+
+            <div class="col-player">
+                <div class="video-container">
+                    <video id="video-player" controls autoplay playsinline></video>
+                    <div class="loading-spinner" id="loading-spinner" style="display:none;">
+                        <i class="fas fa-spinner"></i>
+                        <p>Зареждане...</p>
+                    </div>
+                </div>
+
+                <div class="controls-panel">
+                    <div class="now-playing-title" id="current-channel-name">Изберете медия</div>
+                    
+                    <div class="info-box-dynamic" id="dynamic-info-box">
+                        <div id="dynamic-label" class="info-label-dyn">В момента предават:</div>
+                        <div id="dynamic-meta" class="vod-meta-details"></div>
+                        <div id="dynamic-title" class="info-title-dyn">-</div>
+                        <div id="vod-details"></div>
+                        
+                        <div class="epg-progress-bar" id="epg-progress-wrapper">
+                            <div class="epg-progress-fill" id="epg-current-progress"></div>
+                        </div>
+                        <div class="epg-time-meta" id="epg-time-wrapper">
+                            <span id="epg-current-start">00:00</span>
+                            <span id="epg-current-end">00:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="timeshift-section" id="timeshift-wrapper">
+                        <div class="timeshift-title"><i class="fas fa-history"></i> Времеви архив</div>
+                        <div class="timeshift-buttons">
+                            <button class="ts-btn active" onclick="changeTimeshift(0, this)"><i class="fas fa-circle-play"></i> Живо</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-5, this)">-5м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-10, this)">-10м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-15, this)">-15м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-30, this)">-30м</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-60, this)">-1ч</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-90, this)">-1.5ч</button>
+                            <button class="ts-btn" onclick="changeTimeshift(-120, this)">-2ч</button>
+                        </div>
+                    </div>
+
+                    <!-- Нова секция: Записи -->
+<div class="recordings-section" id="recordingsSection">
+    <div class="recordings-header">
+        <i class="fas fa-clock-rotate-left"></i>
+        <span>Записи (EPG назад)</span>
+        <button class="refresh-btn" onclick="refreshEpg()">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    <div class="recordings-list" id="recordingsList">
+        <div class="loading-text">Изберете канал за записи</div>
+    </div>
+</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fullscreen-player" id="fullscreenPlayer">
+        <button class="close-player" onclick="closeFullscreenPlayer()">✖ ЗАТВОРИ</button>
+        <video id="fullscreenVideo" controls autoplay></video>
+    </div>
+
+    <!-- ===== JAVASCRIPT - ВАЖЕН Е РЕДЪТ! ===== -->
+<script src="js/config.js"></script>      <!-- 1. Конфигурация (няма зависимости) -->
+<script src="js/helpers.js"></script>    <!-- 2. Помощни функции (няма зависимости) -->
+<script src="js/auth.js"></script>       <!-- 3. Автентикация (зависи от config.js) -->
+<script src="js/categories.js"></script> <!-- 4. Категории (зависи от config.js, helpers.js) -->
+<script src="js/channels.js"></script>   <!-- 5. Канали (зависи от config.js, helpers.js) -->
+<script src="js/player.js"></script>     <!-- 6. Плеър (зависи от config.js, helpers.js) -->
+<script src="js/epg.js"></script>        <!-- 7. EPG (зависи от config.js, helpers.js) -->
+<script src="js/app.js"></script>        <!-- 8. App (зависи от всичко) -->
+
+
+</body>
+</html>
